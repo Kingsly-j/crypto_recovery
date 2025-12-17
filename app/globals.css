@@ -1,0 +1,108 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+/* Hide scrollbar in Webkit browsers (Chrome, Edge, Safari) */
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar in Firefox */
+.scrollbar-hidden {
+  scrollbar-width: none;
+}
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+/* Floating card */
+.floating {
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+/* Loader */
+.loader-xl {
+  width: 72px;
+  height: 72px;
+  border: 6px solid rgba(255, 255, 255, .15);
+  border-top-color: #14b8a6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Transactions */
+.tx-item {
+  background: #151A2E;
+  padding: 12px;
+  border-radius: 10px;
+  animation: slideFade .6s ease;
+}
+
+@keyframes slideFade {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Highlights */
+.tx-large {
+  box-shadow: 0 0 10px rgba(234, 179, 8, .6);
+}
+
+.tx-huge {
+  box-shadow: 0 0 14px rgba(239, 68, 68, .8);
+}
+
+.tx-match {
+  border: 1px solid #14b8a6;
+}
+
+/* Badge */
+.badge {
+  background: #14b8a6;
+  color: black;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-weight: 600;
+}
