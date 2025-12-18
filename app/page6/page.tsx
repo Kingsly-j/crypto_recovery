@@ -100,7 +100,7 @@ export default function Page6() {
               {(client.requiredBalance || 0).toFixed(8)}{" "}
               {client.currency || "BTC"}
             </span>{" "}
-             required . 
+             required  
           </p>
 
           {/* Complete Recovery Button */}
