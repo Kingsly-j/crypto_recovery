@@ -1,10 +1,26 @@
 "use client";
-import React from "react";
+
+import { useEffect } from "react";
 import SvgStack from "@/components/SvgStack";
 import Image from "next/image";
 import bgImage from "@/components/Image_fx__2_-removebg-preview 1.svg";
 
 export default function InvalidLinkPage() {
+  useEffect(() => {
+    // Push a fake state so back button has nowhere to go
+    window.history.pushState(null, "", window.location.href);
+
+    const handlePopState = () => {
+      window.history.pushState(null, "", window.location.href);
+    };
+
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, []);
+
   return (
     <main className="relative w-full h-screen overflow-hidden">
       {/* SVG background */}
@@ -14,15 +30,14 @@ export default function InvalidLinkPage() {
 
       {/* Content overlay */}
       <div className="relative z-10 flex flex-col items-center justify-center w-full h-full text-center px-4 backdrop-blur-sm bg-black/85">
-        <div>
-          <Image
-            src={bgImage}
-            alt="Background Image"
-            className="absolute inset-0 -z-10 object-contain"
-          />
-        </div>
-        <div className="w-full flex flex-col max-w-[80%] sm:max-w-lg md:max-w-lg lg:max-w-xl h-auto max-h-[80vh] md:max-h-[90vh] bg-[#0E111C]/85 rounded-lg items-center justify-center p-6">
-          <p className="text-white text-lg md:text-xl flex font-bold gap-4 items-center mb-4">
+        <Image
+          src={bgImage}
+          alt="Background Image"
+          className="absolute inset-0 -z-10 object-contain"
+        />
+
+        <div className="w-full flex flex-col max-w-[80%] sm:max-w-lg lg:max-w-xl bg-[#0E111C]/85 rounded-lg items-center justify-center p-6">
+          <p className="text-white text-lg md:text-xl font-bold mb-4">
             Link Invalid or Expired
           </p>
 
@@ -32,10 +47,8 @@ export default function InvalidLinkPage() {
               or has expired.
             </p>
             <p className="text-gray-400 text-left">
-              Please contact the admin to request a new access link.
+              Please contact an agent to request a new access link.
             </p>
-
-           
           </div>
         </div>
       </div>
