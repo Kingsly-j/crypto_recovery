@@ -10,7 +10,8 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-
+import { Suspense } from "react";
+import Page1Client from "./page1Client";
 import {
   collection,
   query,
@@ -162,6 +163,7 @@ export default function Page1() {
   }
 
   return (
+    <Suspense>
     <main className="relative w-full h-screen overflow-hidden">
       <div className="absolute inset-0">
         <SvgStack />
@@ -214,5 +216,6 @@ export default function Page1() {
         </div>
       </div>
     </main>
+    </Suspense>
   );
 }
