@@ -157,7 +157,7 @@ export default function Page1Client() {
             <input
               value={clientName}
               onChange={(e) => setClientName(e.target.value)}
-              placeholder="Client Name"
+              placeholder="Recovery Name"
               className="bg-[#151A2E] p-3 rounded-lg text-white"
             />
 

